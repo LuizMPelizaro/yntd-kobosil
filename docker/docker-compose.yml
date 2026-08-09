@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: oltp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_wal_senders=10"
+      - "-c"
+      - "max_replication_slots=10"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d yntd" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    container_name: redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --kafka-addr=PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - --pandaproxy-addr=0.0.0.0:8082
+      - --advertise-pandaproxy-addr=localhost:8082
+      - --schema-registry-addr=0.0.0.0:8081
+    ports:
+      - "9092:9092"
+      - "8081:8081"
+      - "8082:8082"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v2.7.2
+    container_name: redpanda-console
+    restart: unless-stopped
+    depends_on:
+      - redpanda
+    environment:
+      KAFKA_BROKERS: redpanda:29092
+    ports:
+      - "8080:8080"
+
+  debezium-connect:
+      image: debezium/connect:3.0.0.Final
+      container_name: debezium-connect
+      restart: unless-stopped
+      depends_on:
+        postgres:
+          condition: service_healthy
+        redpanda:
+          condition: service_started
+      environment:
+        BOOTSTRAP_SERVERS: redpanda:29092
+        GROUP_ID: 1
+        CONFIG_STORAGE_TOPIC: connect_configs
+        OFFSET_STORAGE_TOPIC: connect_offsets
+        STATUS_STORAGE_TOPIC: connect_statuses
+        CONFIG_STORAGE_REPLICATION_FACTOR: 1
+        OFFSET_STORAGE_REPLICATION_FACTOR: 1
+        STATUS_STORAGE_REPLICATION_FACTOR: 1
+        CONNECT_CONFIG_PROVIDERS: file
+        CONNECT_CONFIG_PROVIDERS_FILE_CLASS: org.apache.kafka.common.config.provider.FileConfigProvider
+      volumes:
+        - ./connectors/connect-secrets.properties:/kafka/config/connect-secrets.properties:ro
+      ports:
+        - "8083:8083"
+
+volumes:
+  pgdata:
+  redpanda_data:

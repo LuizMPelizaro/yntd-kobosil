@@ -1,0 +1,16 @@
+{
+  "name": "oltp-postgres-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "${file:/kafka/config/connect-secrets.properties:POSTGRES_HOST}",
+    "database.port": "${file:/kafka/config/connect-secrets.properties:POSTGRES_PORT}",
+    "database.user": "${file:/kafka/config/connect-secrets.properties:POSTGRES_USER}",
+    "database.password": "${file:/kafka/config/connect-secrets.properties:POSTGRES_PASSWORD}",
+    "database.dbname": "${file:/kafka/config/connect-secrets.properties:POSTGRES_DB}",
+    "topic.prefix": "${file:/kafka/config/connect-secrets.properties:KAFKA_TOPIC_PREFIX}",
+    "plugin.name": "pgoutput",
+    "publication.autocreate.mode": "filtered",
+    "table.include.list": "public.users,public.markets,public.stock_types,public.stocks,public.stock_transactions",
+    "tombstones.on.delete": "false"
+  }
+}
