@@ -33,3 +33,6 @@ populate_markets_stocks_and_types_using_cache:
 
 insert_stock_transactions:
 	poetry python -m ingestion.portfolio.insert_transactions ingestion/portfolio/example_payload.json
+
+test:
+	poetry run pytest -v
