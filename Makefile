@@ -36,3 +36,9 @@ insert_stock_transactions:
 
 test:
 	poetry run pytest -v
+
+market-data:
+	poetry run uvicorn services.market_data.app.main:app --reload --port 8000
+
+market-data-rebuild:
+	docker compose -f docker/docker-compose.yml up -d --build market-data
