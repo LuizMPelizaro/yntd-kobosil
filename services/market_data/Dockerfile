@@ -9,8 +9,8 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir poetry==1.8.3
 
-# Copia só os arquivos de dependência primeiro, para o Docker cachear
-# essa camada e não reinstalar tudo a cada mudança no código da app.
+# Copy dependency files first so Docker can cache this layer
+# and avoid reinstalling dependencies after application code changes.
 COPY pyproject.toml poetry.lock* ./
 RUN poetry install --no-root --only main
 

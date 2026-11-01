@@ -86,3 +86,53 @@ class TransactionRepository:
                         f"Operation {tx['source']}/{tx['operation_id']} has different data")
                 existing += 1
         return {"inserted": inserted, "existing": existing}
+class OperationNotFound(ValueError):
+    pass
+
+
+class ConcurrentModification(ValueError):
+    pass
+
+
+class MaintenanceRepository:
+    """Snapshot-based maintenance; callers own the transaction boundary."""
+    columns = ('id_transaction', 'id_user', 'source', 'operation_id', 'id_stock',
+               'type', 'quantity', 'price', 'date', 'created_at', 'version')
+    select = '''SELECT id_transaction, id_user, source, operation_id, id_stock,
+                transaction_type, quantity, price, transaction_date, created_at,
+                xmin::text FROM stock_transactions'''
+
+    def __init__(self, db):
+        self.db = db
+
+    def get(self, user_id, transaction_id, lock=False):
+        with self.db.cursor() as cur:
+            cur.execute(self.select + ' WHERE id_user=%s AND id_transaction=%s' +
+                        (' FOR UPDATE' if lock else ''), (user_id, transaction_id))
+            row = cur.fetchone()
+        if row is None:
+            raise OperationNotFound('Operation not found for this user')
+        return dict(zip(self.columns, row))
+
+    def list(self, user_id, limit=50, offset=0):
+        if not 1 <= limit <= 200 or offset < 0:
+            raise ValueError('limit must be 1..200 and offset nonnegative')
+        with self.db.cursor() as cur:
+            cur.execute(self.select + ' WHERE id_user=%s ORDER BY id_transaction LIMIT %s OFFSET %s',
+                        (user_id, limit, offset))
+            return [dict(zip(self.columns, row)) for row in cur.fetchall()]
+
+    def apply(self, expected, values=None):
+        current = self.get(expected['id_user'], expected['id_transaction'], lock=True)
+        if current != expected:
+            raise ConcurrentModification('Operation changed; consult it again before confirming')
+        with self.db.cursor() as cur:
+            key = (expected['id_user'], expected['id_transaction'])
+            if values is None:
+                cur.execute('DELETE FROM stock_transactions WHERE id_user=%s AND id_transaction=%s', key)
+            else:
+                cur.execute('''UPDATE stock_transactions SET id_stock=%s, transaction_type=%s,
+                               quantity=%s, price=%s, transaction_date=%s
+                               WHERE id_user=%s AND id_transaction=%s''',
+                            (values['id_stock'], values['type'], values['quantity'],
+                             values['price'], values['date']) + key)

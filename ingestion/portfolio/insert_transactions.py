@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-from datetime import datetime
+from ingestion.portfolio.validation import validate_transactions
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -19,34 +19,6 @@ logger = logging.getLogger(__name__)
 
 def load_payload(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"), parse_float=Decimal)
-
-
-def validate_transactions(payload):
-    transactions = []
-    for original in payload["transactions"]:
-        tx = dict(original)
-        for name in ("source", "operation_id"):
-            value = tx.get(name)
-            if not isinstance(value, str) or not value.strip() or len(value) > 128:
-                raise ValueError(f"{name} must be a nonempty string of at most 128 characters")
-            if value != value.strip():
-                raise ValueError(f"{name} must not contain surrounding whitespace")
-        tx["symbol"] = tx["symbol"].strip().upper()
-        tx["type"] = tx["type"].upper()
-        if tx["type"] not in ("BUY", "SELL"):
-            raise ValueError("type must be BUY or SELL")
-        for name, scale in (("quantity", 6), ("price", 4)):
-            value = Decimal(str(tx[name]))
-            if (not value.is_finite() or value <= 0 or
-                    value >= Decimal(10) ** (18 - scale) or
-                    value != value.quantize(Decimal(10) ** -scale)):
-                raise ValueError(f"Invalid {name} or precision")
-            tx[name] = value
-        tx["date"] = datetime.fromisoformat(tx["date"])
-        if tx["date"].tzinfo is not None:
-            raise ValueError("Use a timezone-free trade date until timezone migration")
-        transactions.append(tx)
-    return transactions
 
 
 def process_payload(payload: dict[str, Any], db: Database) -> dict[str, int]:
