@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from ingestion.catalog.database import Database
 
@@ -13,28 +12,20 @@ class UnknownStockError(Exception):
 
 
 class UserRepository:
-    def __init__(self, db: Database) -> None:
+    def __init__(self, db):
         self._db = db
 
-    def get_or_create(self, email: str, first_name: str, last_name: str | None = None) -> int:
+    def get_or_create(self, email, first_name, last_name=None):
         with self._db.cursor() as cursor:
-            cursor.execute('SELECT id_user FROM users WHERE email = %s', (email,))
-            row = cursor.fetchone()
-            if row is not None:
-                return row[0]
-
             cursor.execute(
-                """
-                INSERT INTO users (first_name, last_name, email)
-                VALUES (%s, %s, %s) RETURNING id_user
-                """,
-                (first_name, last_name, email)
-            )
+                """INSERT INTO users (first_name, last_name, email)
+                   VALUES (%s, %s, %s) ON CONFLICT (email) DO NOTHING
+                   RETURNING id_user""", (first_name, last_name, email))
             row = cursor.fetchone()
-
-        logger.info(f"New user created: {email} (id_user={row[0]}")
-        return row[0]
-
+            if row is None:
+                cursor.execute("SELECT id_user FROM users WHERE email = %s", (email,))
+                row = cursor.fetchone()
+            return row[0]
 
 class StockLookupRepository:
     def __init__(self, db: Database) -> None:
@@ -59,28 +50,39 @@ class StockLookupRepository:
             return found_stocks
 
 
+class IdempotencyConflict(ValueError):
+    """An operation identifier was reused with different business data."""
+
+
 class TransactionRepository:
-    def __init__(self, db: Database) -> None:
+    def __init__(self, db):
         self._db = db
 
-    def insert_many(self,
-                    id_user: int,
-                    transactions: list[dict[str, Any]],
-                    stock_id_by_code: dict[str, int]) -> int:
+    def insert_many(self, id_user, transactions, stock_id_by_code):
+        inserted = existing = 0
         with self._db.cursor() as cursor:
-            for tx in transactions:
-                cursor.execute("""
-                               INSERT INTO stock_transactions (id_user, id_stock, transaction_type, quantity, price, transaction_date)
-                               VALUES (%s, %s, %s, %s, %s, COALESCE(%s, CURRENT_TIMESTAMP))
-                               """, (
-                                   id_user,
-                                   stock_id_by_code[tx["symbol"]],
-                                   tx["type"].upper(),
-                                   tx["quantity"],
-                                   tx["price"],
-                                   tx.get("date"),
-                               ),
-                               )
-
-        logger.info("%s transactions inserted for id_user=%s", len(transactions), id_user)
-        return len(transactions)
+            # Stable lock acquisition order across overlapping concurrent batches.
+            for tx in sorted(transactions, key=lambda t: (t["source"], t["operation_id"])):
+                values = (stock_id_by_code[tx["symbol"]], tx["type"],
+                          tx["quantity"], tx["price"], tx["date"])
+                key = (id_user, tx["source"], tx["operation_id"])
+                cursor.execute(
+                    """INSERT INTO stock_transactions
+                       (id_user, source, operation_id, id_stock, transaction_type,
+                        quantity, price, transaction_date)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+                       ON CONFLICT (id_user, source, operation_id) DO NOTHING
+                       RETURNING id_transaction""", key + values)
+                if cursor.fetchone() is not None:
+                    inserted += 1
+                    continue
+                cursor.execute(
+                    """SELECT id_stock, transaction_type, quantity, price, transaction_date
+                       FROM stock_transactions
+                       WHERE id_user=%s AND source=%s AND operation_id=%s
+                       FOR SHARE""", key)
+                if tuple(cursor.fetchone()) != values:
+                    raise IdempotencyConflict(
+                        f"Operation {tx['source']}/{tx['operation_id']} has different data")
+                existing += 1
+        return {"inserted": inserted, "existing": existing}

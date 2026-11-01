@@ -16,10 +16,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
+from ingestion.catalog.config import BRAPI_CONFIG
 from ingestion.catalog.database import Database
 from ingestion.catalog.http_client import BrapiHttpClient
-from ingestion.catalog.config import BRAPI_CONFIG
 from ingestion.catalog.repositories import MarketRepository, StockRepository, StockTypeRepository
 from ingestion.catalog.tickers_client import TickersClient
 
