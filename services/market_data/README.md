@@ -1,67 +1,40 @@
-# market-data-service
+# Market Data Service
 
-Provider-agnostic market data microservice. Exposes quote, historical
-prices, dividends, statistics and financial data over HTTP, backed
-today by brapi.dev (B3). Consumed by the Spark/Scala Bronze layer and,
-later, orchestrated by Airflow. Holds no state of its own — every
-request is a live pass-through to the upstream provider.
+Microserviço HTTP de dados de mercado, atualmente integrado à Brapi. As respostas
+são normalizadas; não são cópias integrais da API de origem. O serviço não grava
+dados nem agenda coletas: essas responsabilidades ficam no pipeline e no futuro Airflow.
 
-## Why this shape
+## Inicialização
 
-Every route only depends on the `MarketDataProvider` interface
-(`app/core/provider.py`), never on brapi.dev directly. Adding a second
-data source later (a US-market API, for example) means:
+Na raiz do repositório, configure services/market_data/.env a partir de
+[.env.example](.env.example) e preencha BRAPI_TOKEN conforme seu acesso.
 
-1. Create `app/providers/<new_provider>/` implementing
-   `MarketDataProvider`, mapping its raw responses into the same
-   contracts in `app/core/contracts.py`.
-2. Point `app/dependencies.get_provider` at it (or stand up a sibling
-   service, e.g. `services/market_data_us/`, that reuses the same
-   `app/core` module).
+    make market-data-rebuild
 
-Routers, contracts, and every consumer of this API stay unchanged.
+Para executar em Python local, com Poetry instalado:
 
-## Running locally
+    make market-data
 
-```
-poetry install --no-root
-cp .env.example .env   # fill in BRAPI_TOKEN
-poetry run uvicorn app.main:app --reload --port 8001
-```
+Esse alvo instala as dependências próprias do serviço e inicia com reload na
+porta 8001. Use somente uma execução por porta.
 
-Interactive docs: http://localhost:8001/docs
+- [Swagger UI](http://127.0.0.1:8001/docs)
+- [ReDoc](http://127.0.0.1:8001/redoc)
+- [OpenAPI JSON](http://127.0.0.1:8001/openapi.json)
 
-## Endpoints
+## Documentação
 
-| Endpoint | Brapi resource | Notes |
-|---|---|---|
-| `GET /v1/quote?symbols=PETR4,VALE3` | `/v2/stocks/quote` | Current price snapshot |
-| `GET /v1/historical?symbols=PETR4&range=1mo&interval=1d` | `/v2/stocks/historical` | OHLCV series |
-| `GET /v1/dividends?symbols=PETR4` | `/v2/stocks/dividends` | Cash and stock dividend events |
-| `GET /v1/statistics?symbols=PETR4&mode=current` | `/v2/stocks/statistics` | Valuation and share statistics |
-| `GET /v1/financial-data?symbols=PETR4&mode=current` | `/v2/stocks/financial-data` | Revenue, cash flow, margins |
-| `GET /health` | — | Liveness check |
+- [Endpoints, parâmetros e respostas](docs/api.md)
+- [Importação e uso no Postman](postman/README.md)
+- [Configuração, limites, retentativas e segurança](docs/resilience.md)
+- [Arquitetura interna](docs/architecture.md)
 
-`symbols` accepts multiple comma-separated tickers on every endpoint —
-one request can cover a user's whole portfolio.
+## Testes
 
-Every response wraps its payload in the same envelope:
+Na pasta services/market_data:
 
-```json
-{
-  "requested_symbol": "PETR4",
-  "symbol": "PETR4",
-  "changed": false,
-  "data": { ... }
-}
-```
+    poetry install --no-root
+    poetry run pytest
 
-`changed` is true when brapi.dev resolved an old/renamed ticker to its
-current one — worth checking downstream before assuming the requested
-symbol is what actually got matched.
-Reliability settings and error behavior: [resilience guide](../../docs/architecture/market-data-resilience.md).
-
-From the repository root, `make market-data` installs this service's own Poetry
-dependencies and starts the local server on port 8001. Use
-`make market-data-rebuild` for Docker instead. Stop the Docker service before
-starting locally on the same port.
+Os testes HTTP simulam a Brapi e não consomem sua cota. As requisições de mercado
+executadas manualmente no Postman fazem chamadas reais pelo serviço.
