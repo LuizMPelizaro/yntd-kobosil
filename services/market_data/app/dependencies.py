@@ -1,16 +1,10 @@
-from __future__ import annotations
-
-from functools import lru_cache
-
+from fastapi import Request
 from app.core.provider import MarketDataProvider
-from app.providers.brapi.client import BrapiStocksClient
-from app.providers.brapi.provider import BrapiProvider
 
 
-@lru_cache
-def get_client() -> BrapiStocksClient:
-    return BrapiStocksClient()
+def get_client(request: Request):
+    return request.app.state.market_client
 
 
-def get_provider() -> MarketDataProvider:
-    return BrapiProvider(get_client())
+def get_provider(request: Request) -> MarketDataProvider:
+    return request.app.state.market_provider

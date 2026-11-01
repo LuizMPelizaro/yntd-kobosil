@@ -59,3 +59,9 @@ Every response wraps its payload in the same envelope:
 `changed` is true when brapi.dev resolved an old/renamed ticker to its
 current one — worth checking downstream before assuming the requested
 symbol is what actually got matched.
+Reliability settings and error behavior: [resilience guide](../../docs/architecture/market-data-resilience.md).
+
+From the repository root, `make market-data` installs this service's own Poetry
+dependencies and starts the local server on port 8001. Use
+`make market-data-rebuild` for Docker instead. Stop the Docker service before
+starting locally on the same port.

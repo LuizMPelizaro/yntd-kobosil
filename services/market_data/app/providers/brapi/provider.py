@@ -5,6 +5,14 @@ from typing import List, Optional
 from app.core.contracts import MarketDataResult, Quote, HistoricalSeries, Dividends, Statistics, FinancialData
 from app.core.provider import MarketDataProvider
 from app.providers.brapi import mappers
+from app.core.errors import MarketDataError
+
+
+def map_response(mapper, payload):
+    try:
+        return mapper(payload)
+    except (ValueError, KeyError, TypeError, AttributeError):
+        raise MarketDataError('Invalid provider data', code='upstream_invalid_response') from None
 from app.providers.brapi.client import BrapiStocksClient
 
 
@@ -14,7 +22,7 @@ class BrapiProvider(MarketDataProvider):
 
     async def get_quote(self, symbols: List[str]) -> List[MarketDataResult[Quote]]:
         payload = await self._client.fetch("quote", symbols)
-        return mappers.to_quote_results(payload)
+        return map_response(mappers.to_quote_results, payload)
 
     async def get_historical(
         self,
@@ -37,7 +45,7 @@ class BrapiProvider(MarketDataProvider):
                 "sortOrder": sort_order,
             },
         )
-        return mappers.to_historical_results(payload)
+        return map_response(mappers.to_historical_results, payload)
 
     async def get_dividends(
         self,
@@ -58,7 +66,7 @@ class BrapiProvider(MarketDataProvider):
                 "sortOrder": sort_order,
             },
         )
-        return mappers.to_dividends_results(payload)
+        return map_response(mappers.to_dividends_results, payload)
 
     async def get_statistics(
         self,
@@ -79,7 +87,7 @@ class BrapiProvider(MarketDataProvider):
                 "endDate": end_date,
             },
         )
-        return mappers.to_statistics_results(payload)
+        return map_response(mappers.to_statistics_results, payload)
 
     async def get_financial_data(
         self,
@@ -100,4 +108,4 @@ class BrapiProvider(MarketDataProvider):
                 "endDate": end_date,
             },
         )
-        return mappers.to_financial_data_results(payload)
+        return map_response(mappers.to_financial_data_results, payload)
