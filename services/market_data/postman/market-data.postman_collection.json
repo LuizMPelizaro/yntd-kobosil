@@ -1,0 +1,427 @@
+{
+  "info": {
+    "name": "Market Data Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Local market data service. Run Health first. Market data requests consume provider quota and require provider coverage. No Brapi token belongs in this collection; configure it server-side. Optional query parameters are disabled by default."
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8001",
+      "type": "string"
+    },
+    {
+      "key": "symbols",
+      "value": "PETR4",
+      "type": "string"
+    },
+    {
+      "key": "range",
+      "value": "1mo",
+      "type": "string"
+    },
+    {
+      "key": "interval",
+      "value": "1d",
+      "type": "string"
+    },
+    {
+      "key": "startDate",
+      "value": "2026-01-01",
+      "type": "string"
+    },
+    {
+      "key": "endDate",
+      "value": "2026-01-07",
+      "type": "string"
+    },
+    {
+      "key": "sortOrder",
+      "value": "asc",
+      "type": "string"
+    },
+    {
+      "key": "sortBy",
+      "value": "paymentDate",
+      "type": "string"
+    },
+    {
+      "key": "period",
+      "value": "quarterly",
+      "type": "string"
+    },
+    {
+      "key": "mode",
+      "value": "current",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Local liveness check; does not call Brapi."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Returns HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Returns JSON\", function () { pm.response.to.be.json; });",
+              "pm.test(\"Service is healthy\", function () { pm.expect(pm.response.json().status).to.eql(\"ok\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Quote",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/quote?symbols={{symbols}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "quote"
+          ],
+          "query": [
+            {
+              "key": "symbols",
+              "value": "{{symbols}}",
+              "disabled": false,
+              "description": "Required comma-separated symbols; normalized and deduplicated."
+            }
+          ]
+        },
+        "description": "Current quote snapshot."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Returns HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Returns JSON\", function () { pm.response.to.be.json; });",
+              "pm.test(\"Returns a result array\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Historical prices",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/historical?symbols={{symbols}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "historical"
+          ],
+          "query": [
+            {
+              "key": "symbols",
+              "value": "{{symbols}}",
+              "disabled": false,
+              "description": "Required comma-separated symbols; normalized and deduplicated."
+            },
+            {
+              "key": "range",
+              "value": "{{range}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "interval",
+              "value": "{{interval}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "startDate",
+              "value": "{{startDate}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "endDate",
+              "value": "{{endDate}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "sortOrder",
+              "value": "{{sortOrder}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            }
+          ]
+        },
+        "description": "OHLCV historical series. Select a range or enable explicit dates."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Returns HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Returns JSON\", function () { pm.response.to.be.json; });",
+              "pm.test(\"Returns a result array\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dividends",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/dividends?symbols={{symbols}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "dividends"
+          ],
+          "query": [
+            {
+              "key": "symbols",
+              "value": "{{symbols}}",
+              "disabled": false,
+              "description": "Required comma-separated symbols; normalized and deduplicated."
+            },
+            {
+              "key": "startDate",
+              "value": "{{startDate}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "endDate",
+              "value": "{{endDate}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "sortBy",
+              "value": "{{sortBy}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "sortOrder",
+              "value": "{{sortOrder}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            }
+          ]
+        },
+        "description": "Cash and stock dividends."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Returns HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Returns JSON\", function () { pm.response.to.be.json; });",
+              "pm.test(\"Returns a result array\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Statistics",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/statistics?symbols={{symbols}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "statistics"
+          ],
+          "query": [
+            {
+              "key": "symbols",
+              "value": "{{symbols}}",
+              "disabled": false,
+              "description": "Required comma-separated symbols; normalized and deduplicated."
+            },
+            {
+              "key": "period",
+              "value": "{{period}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "mode",
+              "value": "{{mode}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "startDate",
+              "value": "{{startDate}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "endDate",
+              "value": "{{endDate}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            }
+          ]
+        },
+        "description": "Valuation and share statistics."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Returns HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Returns JSON\", function () { pm.response.to.be.json; });",
+              "pm.test(\"Returns a result array\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Financial data",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/financial-data?symbols={{symbols}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "financial-data"
+          ],
+          "query": [
+            {
+              "key": "symbols",
+              "value": "{{symbols}}",
+              "disabled": false,
+              "description": "Required comma-separated symbols; normalized and deduplicated."
+            },
+            {
+              "key": "period",
+              "value": "{{period}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "mode",
+              "value": "{{mode}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "startDate",
+              "value": "{{startDate}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            },
+            {
+              "key": "endDate",
+              "value": "{{endDate}}",
+              "disabled": true,
+              "description": "Optional; enable deliberately. Values and availability depend on the provider."
+            }
+          ]
+        },
+        "description": "Revenue, cash flow and margins."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Returns HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Returns JSON\", function () { pm.response.to.be.json; });",
+              "pm.test(\"Returns a result array\", function () { pm.expect(pm.response.json()).to.be.an(\"array\"); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

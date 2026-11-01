@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+from ingestion.portfolio.validation import validate_transactions
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -16,26 +18,19 @@ logger = logging.getLogger(__name__)
 
 
 def load_payload(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8"), parse_float=Decimal)
 
 
-def process_payload(payload: dict[str, Any], db: Database) -> int:
-    user_repo = UserRepository(db)
-    stock_repo = StockLookupRepository(db)
-    tx_repo = TransactionRepository(db)
-
-    id_user = user_repo.get_or_create(
-        email=payload["email"],
-        first_name=payload["first_name"],
-        last_name=payload.get("last_name"),
-    )
-
-    transactions = payload["transactions"]
-    symbols = [tx["symbol"] for tx in transactions]
-    stock_id_by_code = stock_repo.resolve_many(symbols)
-
-    return tx_repo.insert_many(id_user, transactions, stock_id_by_code)
-
+def process_payload(payload: dict[str, Any], db: Database) -> dict[str, int]:
+    transactions = validate_transactions(payload)
+    with db.transaction() as session:
+        id_user = UserRepository(session).get_or_create(
+            email=payload["email"], first_name=payload["first_name"],
+            last_name=payload.get("last_name"))
+        stocks = StockLookupRepository(session).resolve_many(
+            [tx["symbol"] for tx in transactions])
+        result = TransactionRepository(session).insert_many(id_user, transactions, stocks)
+    return result
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -52,8 +47,9 @@ def main() -> None:
     with Database() as db:
         count = process_payload(payload, db)
 
-    logger.info("Done: %s transactions inserted for %s", count, payload["email"])
+    logger.info("Committed: %s", count)
 
 
 if __name__ == "__main__":
     main()
+

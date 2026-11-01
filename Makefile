@@ -1,4 +1,4 @@
-﻿up:
+up:
 	docker compose --env-file .env -f docker/docker-compose.yml up -d
 
 down:
@@ -26,10 +26,22 @@ logs:
 	docker compose -f docker/docker-compose.yml logs -f
 
 populate_markets_stocks_and_types:
-	poetry python -m ingestion.catalog.sync_tickers
+	poetry run python -m ingestion.catalog.sync_tickers
 
 populate_markets_stocks_and_types_using_cache:
-	poetry python -m ingestion.catalog.sync_tickers --from-cache
+	poetry run python -m ingestion.catalog.sync_tickers --from-cache
 
 insert_stock_transactions:
-	poetry python -m ingestion.portfolio.insert_transactions ingestion/portfolio/example_payload.json
+	poetry run python -m ingestion.portfolio.insert_transactions ingestion/portfolio/example_payload.json
+
+test:
+	poetry run pytest -v
+
+market-data-install:
+	cd services/market_data && poetry install --no-root
+
+market-data: market-data-install
+	cd services/market_data && poetry run python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+
+market-data-rebuild:
+	docker compose -f docker/docker-compose.yml up -d --build market-data

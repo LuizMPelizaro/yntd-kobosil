@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS stock_transactions (
   id_transaction INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_user INTEGER NOT NULL,
   id_stock INTEGER NOT NULL,
+  source VARCHAR(128) NOT NULL,
+  operation_id VARCHAR(128) NOT NULL,
   transaction_type VARCHAR(4) NOT NULL,
   quantity NUMERIC(18,6) NOT NULL,
   price NUMERIC(18,4) NOT NULL,
@@ -66,3 +68,5 @@ CREATE INDEX idx_transactions_user_date ON stock_transactions(id_user, transacti
 
 ALTER TABLE stock_transactions REPLICA IDENTITY FULL;
 ALTER TABLE stocks REPLICA IDENTITY FULL;
+CREATE UNIQUE INDEX idx_transactions_operation ON stock_transactions (id_user, source, operation_id);
+

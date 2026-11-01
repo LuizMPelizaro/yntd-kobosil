@@ -87,6 +87,12 @@ class Database:
             finally:
                 cur.close()
 
+    @contextmanager
+    def transaction(self):
+        """Expose a cursor factory bound to one commit/rollback boundary."""
+        with self.connection() as conn:
+            yield TransactionSession(conn)
+
     def close(self) -> None:
         self._pool.closeall()
         logger.info("Connection pool closed")
@@ -96,3 +102,12 @@ class Database:
 
     def __exit__(self, *exc_info: object) -> None:
         self.close()
+
+class TransactionSession:
+    def __init__(self, conn):
+        self._conn = conn
+
+    @contextmanager
+    def cursor(self):
+        with self._conn.cursor() as cursor:
+            yield cursor

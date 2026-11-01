@@ -86,6 +86,17 @@ services:
       ports:
         - "8083:8083"
 
+  market-data:
+    build:
+      context: ../services/market_data
+      dockerfile: Dockerfile
+    container_name: market-data-service
+    restart: unless-stopped
+    env_file:
+      - ../services/market_data/.env
+    ports:
+      - "127.0.0.1:8001:8001"
+
 volumes:
   pgdata:
   redpanda_data:

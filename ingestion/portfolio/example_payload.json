@@ -3,8 +3,23 @@
   "first_name": "Delta",
   "last_name": "Silva",
   "transactions": [
-    {"symbol": "PETR4", "type": "BUY", "quantity": 100, "price": 36.65, "date": "2026-07-15"},
-    {"symbol": "LREN3", "type": "BUY", "quantity": 50, "price": 12.39, "date": "2026-07-20"},
-    {"symbol": "WTXA11", "type": "BUY", "quantity": 200, "price": 1.00, "date": "2026-08-01"}
+    {
+      "source": "legacy",
+      "operation_id": "legacy-1",
+      "symbol": "PETR4",
+      "type": "BUY",
+      "quantity": 100,
+      "price": 36.65,
+      "date": "2026-07-15"
+    },
+    {
+      "source": "legacy",
+      "operation_id": "legacy-2",
+      "symbol": "LREN3",
+      "type": "BUY",
+      "quantity": 50,
+      "price": 12.39,
+      "date": "2026-07-20"
+    }
   ]
 }
