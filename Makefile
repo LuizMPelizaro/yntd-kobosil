@@ -1,4 +1,4 @@
-﻿up:
+up:
 	docker compose --env-file .env -f docker/docker-compose.yml up -d
 
 down:
@@ -37,8 +37,11 @@ insert_stock_transactions:
 test:
 	poetry run pytest -v
 
-market-data:
-	poetry run uvicorn services.market_data.app.main:app --reload --port 8000
+market-data-install:
+	cd services/market_data && poetry install --no-root
+
+market-data: market-data-install
+	cd services/market_data && poetry run python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 
 market-data-rebuild:
 	docker compose -f docker/docker-compose.yml up -d --build market-data
